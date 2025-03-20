@@ -1,135 +1,60 @@
 #include <iostream>
-#include <vector>
-#include <thread>
 #include <queue>
-#include <functional>
+#include <thread>
 #include <mutex>
 #include <condition_variable>
-#include <future>
-#include <numeric>
+#include <chrono>
+std::queue<int> queue; // Shared queue
+const size_t queueSize = 10; // Maximum queue size
+std::mutex mtx;
+std::condition_variable cv;
 
-class Student
-{
-public:
-    Student(int id) : student_id(id) {}
-    void calculate_gpa(const std::vector<int> &grades)
-    {
-        double average = std::accumulate(grades.begin(), grades.end(), 0.0) / grades.size();
-
-        // This function only modifies thread data
-        gpa = average;
-    }
-    const double get_gpa() const { return gpa; }
-    const int get_id() const { return student_id; }
-
-private:
-    double gpa;
-    int student_id;
-};
-
-class ThreadPool
-{
-public:
-    ThreadPool(size_t numThreads) : stop(false)
-    {
-        for (size_t i = 0; i < numThreads; ++i)
-        {
-            workers.emplace_back([this]
-                {
-                    while (true) {
-                    std::function<void()> task;
-                    { // scope management for unique_lock
-                        std::unique_lock<std::mutex> lock(queueMutex);
-                        condition.wait(lock, [this] { return stop || !tasks.empty(); });
-                        if (stop && tasks.empty()) return;
-                        task = std::move(tasks.front());
-                        tasks.pop();
-                    }
-                    task();
-                    } 
-                }
-            );
-        }
-    }
-    template <class F, class... Args>
-    auto enqueue(F &&f, Args &&...args) -> std::future<typename std::invoke_result<F, Args...>::type>
-    {
-        using returnType = typename std::invoke_result<F, Args...>::type;
-        auto task = std::make_shared<std::packaged_task<returnType()>>(
-            std::bind(std::forward<F>(f), std::forward<Args>(args)...));
-        std::future<returnType> result = task->get_future();
-
-        { // scope block for lock_guard
-            std::lock_guard<std::mutex> lock(queueMutex);
-            if (stop)
-                throw std::runtime_error("enqueue on stopped ThreadPool");
-            tasks.emplace([task]()
-                          { (*task)(); });
-        }
-        condition.notify_one();
-        return result;
-    }
-    ~ThreadPool()
-    {
-
-        {
-            std::lock_guard<std::mutex> lock(queueMutex);
-            stop = true;
-        }
-        condition.notify_all();
-        for (std::thread &worker : workers)
-        {
-            if (worker.joinable())
-                worker.join();
-        }
-    }
-
-private:
-    std::vector<std::thread> workers;
-    std::queue<std::function<void()>> tasks;
-    std::mutex queueMutex;
-    std::condition_variable condition;
-    bool stop;
-};
-// Example usage
-int main()
-{
-
-    std::vector<Student> students = {
-        Student(1),
-        Student(2),
-        Student(3)};
-
-    std::vector<int> grades_student1 = {85, 90, 78, 92};
-    std::vector<int> grades_student2 = {88, 76, 95, 89};
-    std::vector<int> grades_student3 = {90, 91, 85, 87};
-
-    std::vector<std::future<void>> futures;
-
-    ThreadPool pool(4);
-    // Enqueue tasks
-    futures.push_back(pool.enqueue([&students, &grades_student1]
-                                   {
-          students[0].calculate_gpa(grades_student1);
-          return; }));
-    futures.push_back(pool.enqueue([&students, &grades_student2]
-                                   {
-          students[1].calculate_gpa(grades_student2);
-          return; }));
-    futures.push_back(pool.enqueue([&students, &grades_student3]
-                                   {
-          students[2].calculate_gpa(grades_student3);
-          return; }));
-
-    // Wait for all tasks to finish
-    for (auto &f : futures)
-    {
-        f.get();
-    }
-    // Print the results
-    for (const auto &student : students)
-    {
-        std::cout << "Student ID: " << student.get_id() << " GPA: " << student.get_gpa() << std::endl;
-    }
-    return 0;
+void producer(int id, int itemCount) {
+  for (int i = 0; i < itemCount; ++i) {
+    std::unique_lock<std::mutex> lock(mtx);
+    // Wait if the queue is full
+    cv.wait(lock, [] { return queue.size() < queueSize; });
+    // Produce an item
+    int item = id * 100 + i; // Unique item ID
+    queue.push(item);
+    std::cout << "Producer " << id << " produced: " << item << "\n";
+    // Because this will sleep the unlock and then notify_all order is important
+    lock.unlock();
+    cv.notify_all(); // Notify consumers
+    // Never hold a lock when going to sleep
+    std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Simulate work
+  }
 }
+void consumer(int id, int itemCount) {
+  for (int i = 0; i < itemCount; ++i) {
+    std::unique_lock<std::mutex> lock(mtx);
+    // Wait if the queue is empty
+    cv.wait(lock, [] { return !queue.empty(); });
+    // Consume an item
+    int item = queue.front();
+    queue.pop();
+    std::cout << "Consumer " << id << " consumed: " << item << "\n";
+    lock.unlock();
+    cv.notify_all(); // Notify producers
+    std::this_thread::sleep_for(std::chrono::milliseconds(150)); // Simulate work
+  }
+}
+int main() {
+  const int producerCount = 2;
+  const int consumerCount = 2;
+  const int itemsPerProducer = 5;
+  std::vector<std::thread> producers, consumers;
+  // Create producer threads
+  for (int i = 0; i < producerCount; ++i) {
+    producers.emplace_back(producer, i + 1, itemsPerProducer);
+  }
+  // Create consumer threads
+  for (int i = 0; i < consumerCount; ++i) {
+    consumers.emplace_back(consumer, i + 1, (producerCount * itemsPerProducer) / consumerCount);
+  }
+  // Join all threads
+  for (auto& p : producers) p.join();
+  for (auto& c : consumers) c.join();
+  return 0;
+}
+
