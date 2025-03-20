@@ -6,8 +6,8 @@ Source code for each module will be in a separate folder under src
 
 ## Environment
 These demonstrations were created in the following environment  
-- Windows 11 
+- Windows 11 with Ubuntu 24.04 WSL
 - Visual Studio Code
-- MinGW to provide g++ compiler
-- MSYS2 pacman to install modules
+- MinGW to provide g++ compiler (13.3.0)
+
 
