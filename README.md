@@ -8,6 +8,7 @@ Source code for each module will be in a separate folder under src
 These demonstrations were created in the following environment  
 - Windows 11 with Ubuntu 24.04 WSL
 - Visual Studio Code
-- MinGW to provide g++ compiler (13.3.0)
+- g++ compiler (13.3.0) 
+	- if a older version, set std=c++17 in tasks.json
 
 
