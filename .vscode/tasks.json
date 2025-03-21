@@ -14,7 +14,7 @@
                 "-l",
                 "glog",
                 "-l",
-                "gtest"
+                "libtbb12"
             ],
             "options": {
                 "cwd": "C:/Program Files/msys2/ucrt64/bin"

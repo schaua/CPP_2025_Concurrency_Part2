@@ -70,7 +70,7 @@ private:
 
 std::mutex mut;
 
-void producer(ThreadSafeQueue<int> &q, int id)
+void producer(oneapi::tbb::concurrent_queue<int> &q, int id)
 {
     for (int i = 0; i < 10; ++i)
     {
@@ -83,7 +83,7 @@ void producer(ThreadSafeQueue<int> &q, int id)
     }
 }
 
-void consumer(ThreadSafeQueue<int> &q, int id)
+void consumer(oneapi::tbb::concurrent_queue<int> &q, int id)
 {
     for (int i = 0; i < 10; ++i)
     {
@@ -93,10 +93,11 @@ void consumer(ThreadSafeQueue<int> &q, int id)
         // int item = q.front();
         // q.pop();
         // our custom queue
-        int& item = q.dequeue();
+        //int& item = q.dequeue();
         // tbb queue
-        // int item;
-        // while (!q.try_pop(item)){}
+        int item;
+        while (!q.try_pop(item)){}
+
         {
             std::lock_guard<std::mutex> lock(mut);
             std::cout << "Consumer " << id << " dequeued " << item << std::endl;
@@ -106,8 +107,8 @@ void consumer(ThreadSafeQueue<int> &q, int id)
 
 int main()
 {
-    ThreadSafeQueue<int> localqueue;
-    // oneapi::tbb::concurrent_queue<int> localqueue;
+    // ThreadSafeQueue<int> localqueue;
+    oneapi::tbb::concurrent_queue<int> localqueue;
     
     std::vector<std::thread> producers;
     std::vector<std::thread> consumers;
