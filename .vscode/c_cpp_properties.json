@@ -3,7 +3,9 @@
         {
             "name": "Win32",
             "includePath": [
-                "${default}"
+                "${default}",
+                "C:/Program Files/msys2/ucrt64/include",
+                "C:/Program Files/msys2/ucrt64/lib"
             ],
             "defines": [
                 "_DEBUG",

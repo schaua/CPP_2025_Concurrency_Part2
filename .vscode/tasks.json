@@ -10,7 +10,11 @@
                 "${file}",
                 "-o",
                 "${fileDirname}\\${fileBasenameNoExtension}.exe",
-                "-std=c++23"
+                "-std=c++23",
+                "-l",
+                "glog",
+                "-l",
+                "gtest"
             ],
             "options": {
                 "cwd": "C:/Program Files/msys2/ucrt64/bin"
