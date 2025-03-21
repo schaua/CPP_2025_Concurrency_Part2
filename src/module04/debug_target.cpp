@@ -177,7 +177,7 @@ int main() {
 
     // Periodic reporting of all active auctions
     std::thread reporter([&auctions] {
-        while (true) {
+        while (auctions.size() > 0) {
             std::this_thread::sleep_for(std::chrono::seconds(1)); // Report every second
             reportAllAuctions(auctions);
         }
@@ -192,7 +192,9 @@ int main() {
     bidder2.join();
     bidder3.join();
     bidder4.join();
-    reporter.detach(); // Detach reporter as it's a continuous task
 
+    auctions.clear();
+    // reporter.detach(); // Detach reporter as it's a continuous task
+    reporter.join();
     return 0;
 }
